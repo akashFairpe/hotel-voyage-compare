@@ -1,7 +1,9 @@
 
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { Star, MapPin, Wifi, Car, Utensils, Dumbbell, Filter } from 'lucide-react';
+import { fetchHotels } from '../services/api';
 
 const HotelOverview = () => {
   const [filterOpen, setFilterOpen] = useState(false);
@@ -12,74 +14,10 @@ const HotelOverview = () => {
     priceRange: ''
   });
 
-  const hotels = [
-    {
-      id: 1,
-      name: "Grand Plaza Hotel",
-      city: "New York",
-      stars: 5,
-      reviewCount: 1250,
-      type: "5-star",
-      amenities: ["Wifi", "Parking", "Restaurant", "Gym"],
-      image: "photo-1518005020951-eccb494ad742",
-      rating: 4.8
-    },
-    {
-      id: 2,
-      name: "Ocean View Resort",
-      city: "Miami",
-      stars: 4,
-      reviewCount: 890,
-      type: "4-star",
-      amenities: ["Wifi", "Restaurant", "Pool"],
-      image: "photo-1492321936769-b49830bc1d1e",
-      rating: 4.6
-    },
-    {
-      id: 3,
-      name: "Mountain Lodge",
-      city: "Denver",
-      stars: 3,
-      reviewCount: 650,
-      type: "3-star",
-      amenities: ["Wifi", "Parking", "Restaurant"],
-      image: "photo-1470071459604-3b5ec3a7fe05",
-      rating: 4.3
-    },
-    {
-      id: 4,
-      name: "City Center Inn",
-      city: "Chicago",
-      stars: 4,
-      reviewCount: 1100,
-      type: "4-star",
-      amenities: ["Wifi", "Gym", "Restaurant"],
-      image: "photo-1518005020951-eccb494ad742",
-      rating: 4.5
-    },
-    {
-      id: 5,
-      name: "Seaside Hotel",
-      city: "Los Angeles",
-      stars: 5,
-      reviewCount: 2100,
-      type: "5-star",
-      amenities: ["Wifi", "Parking", "Restaurant", "Gym", "Pool"],
-      image: "photo-1506744038136-46273834b3fb",
-      rating: 4.9
-    },
-    {
-      id: 6,
-      name: "Budget Stay",
-      city: "Las Vegas",
-      stars: 3,
-      reviewCount: 450,
-      type: "3-star",
-      amenities: ["Wifi", "Parking"],
-      image: "photo-1492321936769-b49830bc1d1e",
-      rating: 4.1
-    }
-  ];
+  const { data: hotels = [], isLoading, error } = useQuery({
+    queryKey: ['hotels', filters],
+    queryFn: () => fetchHotels(filters),
+  });
 
   const amenityIcons = {
     "Wifi": Wifi,
@@ -90,6 +28,37 @@ const HotelOverview = () => {
   };
 
   const cities = [...new Set(hotels.map(hotel => hotel.city))];
+
+  const handleFilterChange = (newFilters: typeof filters) => {
+    setFilters(newFilters);
+  };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4"></div>
+          <p className="text-gray-600">Loading hotels...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-red-600 mb-4">Failed to load hotels. Please try again.</p>
+          <button 
+            onClick={() => window.location.reload()}
+            className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -128,7 +97,7 @@ const HotelOverview = () => {
                   </label>
                   <select
                     value={filters.stars}
-                    onChange={(e) => setFilters({...filters, stars: e.target.value})}
+                    onChange={(e) => handleFilterChange({...filters, stars: e.target.value})}
                     className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
                     <option value="">All Stars</option>
@@ -145,7 +114,7 @@ const HotelOverview = () => {
                   </label>
                   <select
                     value={filters.city}
-                    onChange={(e) => setFilters({...filters, city: e.target.value})}
+                    onChange={(e) => handleFilterChange({...filters, city: e.target.value})}
                     className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
                     <option value="">All Cities</option>
@@ -162,7 +131,7 @@ const HotelOverview = () => {
                   </label>
                   <select
                     value={filters.priceRange}
-                    onChange={(e) => setFilters({...filters, priceRange: e.target.value})}
+                    onChange={(e) => handleFilterChange({...filters, priceRange: e.target.value})}
                     className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
                     <option value="">All Prices</option>
@@ -171,10 +140,6 @@ const HotelOverview = () => {
                     <option value="luxury">Luxury ($300+)</option>
                   </select>
                 </div>
-
-                <button className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 transition-colors">
-                  Apply Filters
-                </button>
               </div>
             </div>
           </div>
@@ -193,7 +158,7 @@ const HotelOverview = () => {
                   <div className="md:flex">
                     <div className="md:w-1/3">
                       <img
-                        src={`https://images.unsplash.com/${hotel.image}?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80`}
+                        src={hotel.images?.[0] ? `https://images.unsplash.com/${hotel.images[0]}?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80` : `https://images.unsplash.com/photo-1518005020951-eccb494ad742?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80`}
                         alt={hotel.name}
                         className="w-full h-48 md:h-full object-cover"
                       />
@@ -231,7 +196,7 @@ const HotelOverview = () => {
 
                       {/* Amenities */}
                       <div className="flex flex-wrap gap-2 mb-4">
-                        {hotel.amenities.map((amenity, index) => {
+                        {hotel.amenities?.slice(0, 5).map((amenity, index) => {
                           const IconComponent = amenityIcons[amenity] || Star;
                           return (
                             <div key={index} className="flex items-center bg-gray-100 px-2 py-1 rounded-md text-sm">
@@ -244,7 +209,9 @@ const HotelOverview = () => {
 
                       <div className="flex justify-between items-center">
                         <div className="text-sm text-gray-600">
-                          Starting from <span className="text-xl font-bold text-green-600">$99</span>/night
+                          Starting from <span className="text-xl font-bold text-green-600">
+                            {hotel.priceComparison?.[0]?.price || '$99'}
+                          </span>/night
                         </div>
                         <Link
                           to={`/hotel/${hotel.id}`}

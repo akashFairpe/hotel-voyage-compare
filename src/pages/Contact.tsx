@@ -1,28 +1,34 @@
 
 import React, { useState } from 'react';
 import { Mail, Phone, MapPin, Send } from 'lucide-react';
+import { submitContactForm } from '../services/api';
+import { toast } from 'sonner';
 
 const Contact = () => {
-  const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    subject: '',
-    message: ''
-  });
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value
-    });
-  };
-
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    // Handle form submission here
-    console.log('Form submitted:', formData);
-    alert('Thank you for your message! We\'ll get back to you soon.');
-    setFormData({ name: '', email: '', subject: '', message: '' });
+    setIsSubmitting(true);
+
+    const formData = new FormData(e.currentTarget);
+    const contactData = {
+      name: formData.get('name') as string,
+      email: formData.get('email') as string,
+      subject: formData.get('subject') as string,
+      message: formData.get('message') as string,
+    };
+
+    try {
+      await submitContactForm(contactData);
+      toast.success('Message sent successfully! We\'ll get back to you soon.');
+      (e.target as HTMLFormElement).reset();
+    } catch (error) {
+      toast.error('Failed to send message. Please try again.');
+      console.error('Contact form submission error:', error);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -32,7 +38,7 @@ const Contact = () => {
         <div className="container mx-auto px-4 text-center">
           <h1 className="text-4xl md:text-6xl font-bold mb-4">Contact Us</h1>
           <p className="text-xl md:text-2xl opacity-90">
-            We're here to help with your hotel booking needs
+            Get in touch with our travel experts
           </p>
         </div>
       </div>
@@ -41,7 +47,7 @@ const Contact = () => {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
           {/* Contact Form */}
           <div className="bg-white rounded-lg shadow-lg p-8">
-            <h2 className="text-2xl font-bold text-gray-900 mb-6">Send us a Message</h2>
+            <h2 className="text-2xl font-bold text-gray-900 mb-6">Send us a message</h2>
             <form onSubmit={handleSubmit} className="space-y-6">
               <div>
                 <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
@@ -51,11 +57,9 @@ const Contact = () => {
                   type="text"
                   id="name"
                   name="name"
-                  value={formData.name}
-                  onChange={handleChange}
                   required
                   className="w-full px-4 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="Enter your full name"
+                  placeholder="Your full name"
                 />
               </div>
 
@@ -67,11 +71,9 @@ const Contact = () => {
                   type="email"
                   id="email"
                   name="email"
-                  value={formData.email}
-                  onChange={handleChange}
                   required
                   className="w-full px-4 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="Enter your email address"
+                  placeholder="your.email@example.com"
                 />
               </div>
 
@@ -82,17 +84,15 @@ const Contact = () => {
                 <select
                   id="subject"
                   name="subject"
-                  value={formData.subject}
-                  onChange={handleChange}
                   required
                   className="w-full px-4 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 >
                   <option value="">Select a subject</option>
-                  <option value="hotel-inquiry">Hotel Inquiry</option>
-                  <option value="booking-support">Booking Support</option>
-                  <option value="technical-issue">Technical Issue</option>
+                  <option value="general">General Inquiry</option>
+                  <option value="booking">Booking Help</option>
+                  <option value="technical">Technical Issue</option>
                   <option value="partnership">Partnership</option>
-                  <option value="other">Other</option>
+                  <option value="feedback">Feedback</option>
                 </select>
               </div>
 
@@ -103,21 +103,24 @@ const Contact = () => {
                 <textarea
                   id="message"
                   name="message"
-                  value={formData.message}
-                  onChange={handleChange}
-                  required
                   rows={6}
+                  required
                   className="w-full px-4 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-vertical"
                   placeholder="Tell us how we can help you..."
-                />
+                ></textarea>
               </div>
 
               <button
                 type="submit"
-                className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-md transition-colors flex items-center justify-center"
+                disabled={isSubmitting}
+                className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white px-6 py-3 rounded-md transition-colors font-semibold flex items-center justify-center"
               >
-                <Send className="w-5 h-5 mr-2" />
-                Send Message
+                {isSubmitting ? (
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+                ) : (
+                  <Send className="w-5 h-5 mr-2" />
+                )}
+                {isSubmitting ? 'Sending...' : 'Send Message'}
               </button>
             </form>
           </div>
@@ -127,78 +130,54 @@ const Contact = () => {
             <div className="bg-white rounded-lg shadow-lg p-8">
               <h2 className="text-2xl font-bold text-gray-900 mb-6">Get in Touch</h2>
               <div className="space-y-6">
-                <div className="flex items-start space-x-4">
-                  <div className="bg-blue-100 p-3 rounded-lg">
-                    <Mail className="w-6 h-6 text-blue-600" />
-                  </div>
+                <div className="flex items-start">
+                  <Mail className="w-6 h-6 text-blue-600 mr-4 mt-1" />
                   <div>
                     <h3 className="font-semibold text-gray-900 mb-1">Email</h3>
                     <p className="text-gray-600">support@hotelbooker.com</p>
-                    <p className="text-gray-600">info@hotelbooker.com</p>
+                    <p className="text-gray-600">partnerships@hotelbooker.com</p>
                   </div>
                 </div>
 
-                <div className="flex items-start space-x-4">
-                  <div className="bg-blue-100 p-3 rounded-lg">
-                    <Phone className="w-6 h-6 text-blue-600" />
-                  </div>
+                <div className="flex items-start">
+                  <Phone className="w-6 h-6 text-blue-600 mr-4 mt-1" />
                   <div>
                     <h3 className="font-semibold text-gray-900 mb-1">Phone</h3>
                     <p className="text-gray-600">+1 (555) 123-4567</p>
-                    <p className="text-gray-600">+1 (555) 987-6543</p>
+                    <p className="text-gray-500 text-sm">Mon-Fri 9AM-6PM EST</p>
                   </div>
                 </div>
 
-                <div className="flex items-start space-x-4">
-                  <div className="bg-blue-100 p-3 rounded-lg">
-                    <MapPin className="w-6 h-6 text-blue-600" />
-                  </div>
+                <div className="flex items-start">
+                  <MapPin className="w-6 h-6 text-blue-600 mr-4 mt-1" />
                   <div>
                     <h3 className="font-semibold text-gray-900 mb-1">Address</h3>
                     <p className="text-gray-600">
-                      123 Business Avenue<br />
-                      Suite 100<br />
-                      New York, NY 10001<br />
-                      United States
+                      123 Business Plaza<br />
+                      Suite 400<br />
+                      New York, NY 10001
                     </p>
                   </div>
                 </div>
               </div>
             </div>
 
-            {/* Business Hours */}
+            {/* FAQ */}
             <div className="bg-white rounded-lg shadow-lg p-8">
-              <h2 className="text-2xl font-bold text-gray-900 mb-6">Business Hours</h2>
-              <div className="space-y-3">
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Monday - Friday</span>
-                  <span className="font-semibold text-gray-900">9:00 AM - 8:00 PM</span>
+              <h2 className="text-2xl font-bold text-gray-900 mb-6">Quick Help</h2>
+              <div className="space-y-4">
+                <div>
+                  <h3 className="font-semibold text-gray-900 mb-2">How do I book a hotel?</h3>
+                  <p className="text-gray-600 text-sm">Search for hotels, compare prices, and click on your preferred booking site to complete the reservation.</p>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Saturday</span>
-                  <span className="font-semibold text-gray-900">10:00 AM - 6:00 PM</span>
+                <div>
+                  <h3 className="font-semibold text-gray-900 mb-2">Are there any booking fees?</h3>
+                  <p className="text-gray-600 text-sm">No, our service is completely free. You'll only pay the price shown on the booking site.</p>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Sunday</span>
-                  <span className="font-semibold text-gray-900">12:00 PM - 5:00 PM</span>
+                <div>
+                  <h3 className="font-semibold text-gray-900 mb-2">Can I cancel my booking?</h3>
+                  <p className="text-gray-600 text-sm">Cancellation policies depend on the booking site and hotel. Check the terms before booking.</p>
                 </div>
-              </div>
-              <div className="mt-4 p-3 bg-blue-50 rounded-lg">
-                <p className="text-sm text-blue-800">
-                  <strong>24/7 Emergency Support:</strong> For urgent booking issues, our emergency line is available round the clock.
-                </p>
-              </div>
-            </div>
-
-            {/* Map Placeholder */}
-            <div className="bg-white rounded-lg shadow-lg p-8">
-              <h2 className="text-2xl font-bold text-gray-900 mb-6">Find Us</h2>
-              <div className="bg-gray-100 rounded-lg p-12 text-center">
-                <MapPin className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                <p className="text-gray-600 mb-4">Interactive Map</p>
-                <button className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-md transition-colors">
-                  View on Google Maps
-                </button>
               </div>
             </div>
           </div>

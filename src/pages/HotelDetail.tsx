@@ -1,67 +1,60 @@
 
 import React from 'react';
 import { useParams, Link } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { Star, MapPin, Wifi, Car, Utensils, Dumbbell, Clock, ExternalLink } from 'lucide-react';
+import { fetchHotelById, fetchSimilarHotels } from '../services/api';
 
 const HotelDetail = () => {
-  const { id } = useParams();
+  const { id } = useParams<{ id: string }>();
 
-  // Mock hotel data (in real app, this would come from an API)
-  const hotel = {
-    id: 1,
-    name: "Grand Plaza Hotel",
-    address: "123 Main Street, New York, NY 10001",
-    stars: 5,
-    rating: 4.8,
-    reviewCount: 1250,
-    type: "5-star Luxury Hotel",
-    checkinTime: "3:00 PM",
-    checkoutTime: "11:00 AM",
-    description: "Experience luxury at its finest at the Grand Plaza Hotel. Located in the heart of Manhattan, our hotel offers unparalleled service, elegant accommodations, and world-class amenities. Perfect for both business and leisure travelers seeking sophistication and comfort.",
-    images: [
-      "photo-1518005020951-eccb494ad742",
-      "photo-1492321936769-b49830bc1d1e",
-      "photo-1470071459604-3b5ec3a7fe05"
-    ],
-    amenities: [
-      { name: "Free WiFi", icon: Wifi },
-      { name: "Valet Parking", icon: Car },
-      { name: "Fine Dining", icon: Utensils },
-      { name: "Fitness Center", icon: Dumbbell },
-      { name: "24/7 Concierge", icon: Clock }
-    ],
-    priceComparison: [
-      { site: "Booking.com", price: "$299", link: "https://booking.com" },
-      { site: "Expedia", price: "$289", link: "https://expedia.com" },
-      { site: "Hotels.com", price: "$310", link: "https://hotels.com" }
-    ],
-    reviews: [
-      {
-        author: "John Smith",
-        rating: 5,
-        date: "December 2024",
-        text: "Absolutely fantastic hotel! The service was impeccable and the room was luxurious. Will definitely stay here again."
-      }
-    ],
-    mapLink: "https://maps.google.com/maps?q=Grand+Plaza+Hotel+New+York"
+  const { data: hotel, isLoading, error } = useQuery({
+    queryKey: ['hotel', id],
+    queryFn: () => fetchHotelById(id!),
+    enabled: !!id,
+  });
+
+  const { data: similarHotels = [] } = useQuery({
+    queryKey: ['similarHotels', id],
+    queryFn: () => fetchSimilarHotels(id!),
+    enabled: !!id,
+  });
+
+  const amenityIcons = {
+    "Free WiFi": Wifi,
+    "Wifi": Wifi,
+    "Valet Parking": Car,
+    "Parking": Car,
+    "Fine Dining": Utensils,
+    "Restaurant": Utensils,
+    "Fitness Center": Dumbbell,
+    "Gym": Dumbbell,
+    "24/7 Concierge": Clock
   };
 
-  const similarHotels = [
-    {
-      id: 2,
-      name: "Luxury Suites NYC",
-      rating: 4.7,
-      price: "$249",
-      image: "photo-1492321936769-b49830bc1d1e"
-    },
-    {
-      id: 3,
-      name: "Manhattan Elite",
-      rating: 4.6,
-      price: "$199",
-      image: "photo-1518005020951-eccb494ad742"
-    }
-  ];
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4"></div>
+          <p className="text-gray-600">Loading hotel details...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error || !hotel) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-red-600 mb-4">Hotel not found or failed to load.</p>
+          <Link to="/hotels" className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700">
+            Back to Hotels
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -113,14 +106,20 @@ const HotelDetail = () => {
             <section className="bg-white rounded-lg shadow-lg p-6 mb-8">
               <h2 className="text-2xl font-bold text-gray-900 mb-4">Photo Gallery</h2>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {hotel.images.map((image, index) => (
+                {hotel.images?.slice(0, 3).map((image, index) => (
                   <img
                     key={index}
                     src={`https://images.unsplash.com/${image}?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80`}
                     alt={`${hotel.name} - Image ${index + 1}`}
                     className="w-full h-48 object-cover rounded-lg hover:opacity-90 transition-opacity cursor-pointer"
                   />
-                ))}
+                )) || (
+                  <img
+                    src="https://images.unsplash.com/photo-1518005020951-eccb494ad742?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80"
+                    alt={hotel.name}
+                    className="w-full h-48 object-cover rounded-lg col-span-3"
+                  />
+                )}
               </div>
             </section>
 
@@ -151,12 +150,15 @@ const HotelDetail = () => {
             <section className="bg-white rounded-lg shadow-lg p-6 mb-8">
               <h2 className="text-2xl font-bold text-gray-900 mb-4">Amenities</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {hotel.amenities.map((amenity, index) => (
-                  <div key={index} className="flex items-center">
-                    <amenity.icon className="w-5 h-5 text-blue-600 mr-3" />
-                    <span className="text-gray-700">{amenity.name}</span>
-                  </div>
-                ))}
+                {hotel.amenities?.map((amenity, index) => {
+                  const IconComponent = amenityIcons[amenity] || Star;
+                  return (
+                    <div key={index} className="flex items-center">
+                      <IconComponent className="w-5 h-5 text-blue-600 mr-3" />
+                      <span className="text-gray-700">{amenity}</span>
+                    </div>
+                  );
+                })}
               </div>
             </section>
 
@@ -164,7 +166,7 @@ const HotelDetail = () => {
             <section className="bg-white rounded-lg shadow-lg p-6 mb-8">
               <h2 className="text-2xl font-bold text-gray-900 mb-4">Price Comparison</h2>
               <div className="space-y-4">
-                {hotel.priceComparison.map((booking, index) => (
+                {hotel.priceComparison?.map((booking, index) => (
                   <div key={index} className="flex justify-between items-center p-4 border border-gray-200 rounded-lg hover:bg-gray-50">
                     <div>
                       <h3 className="font-semibold text-gray-900">{booking.site}</h3>
@@ -191,7 +193,7 @@ const HotelDetail = () => {
             {/* Reviews */}
             <section className="bg-white rounded-lg shadow-lg p-6 mb-8">
               <h2 className="text-2xl font-bold text-gray-900 mb-4">Guest Reviews</h2>
-              {hotel.reviews.map((review, index) => (
+              {hotel.reviews?.map((review, index) => (
                 <div key={index} className="border-b border-gray-200 pb-4 mb-4 last:border-b-0 last:mb-0">
                   <div className="flex items-center mb-2">
                     <div className="flex">
@@ -233,9 +235,9 @@ const HotelDetail = () => {
               <h3 className="text-xl font-bold text-gray-900 mb-4">Similar Hotels</h3>
               <div className="space-y-4">
                 {similarHotels.map((similar) => (
-                  <div key={similar.id} className="flex items-center space-x-3">
+                  <Link key={similar.id} to={`/hotel/${similar.id}`} className="flex items-center space-x-3 hover:bg-gray-50 p-2 rounded">
                     <img
-                      src={`https://images.unsplash.com/${similar.image}?ixlib=rb-4.0.3&auto=format&fit=crop&w=200&q=80`}
+                      src={similar.images?.[0] ? `https://images.unsplash.com/${similar.images[0]}?ixlib=rb-4.0.3&auto=format&fit=crop&w=200&q=80` : `https://images.unsplash.com/photo-1518005020951-eccb494ad742?ixlib=rb-4.0.3&auto=format&fit=crop&w=200&q=80`}
                       alt={similar.name}
                       className="w-16 h-16 object-cover rounded-lg"
                     />
@@ -243,10 +245,12 @@ const HotelDetail = () => {
                       <h4 className="font-semibold text-gray-900">{similar.name}</h4>
                       <div className="flex items-center justify-between">
                         <span className="text-sm text-gray-600">Rating: {similar.rating}</span>
-                        <span className="font-bold text-green-600">{similar.price}</span>
+                        <span className="font-bold text-green-600">
+                          {similar.priceComparison?.[0]?.price || '$99'}
+                        </span>
                       </div>
                     </div>
-                  </div>
+                  </Link>
                 ))}
               </div>
             </div>
@@ -256,13 +260,13 @@ const HotelDetail = () => {
               <h3 className="text-xl font-bold text-gray-900 mb-4">Related Guides</h3>
               <div className="space-y-3">
                 <Link to="/blog/1" className="block text-blue-600 hover:text-blue-700 transition-colors">
-                  → Best Hotels in New York City
+                  → Best Hotels in {hotel.city}
                 </Link>
                 <Link to="/blog/2" className="block text-blue-600 hover:text-blue-700 transition-colors">
-                  → Luxury Travel Tips for NYC
+                  → Luxury Travel Tips for {hotel.city}
                 </Link>
                 <Link to="/blog/3" className="block text-blue-600 hover:text-blue-700 transition-colors">
-                  → Manhattan Travel Guide
+                  → {hotel.city} Travel Guide
                 </Link>
               </div>
             </div>
